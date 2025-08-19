@@ -1,0 +1,85 @@
+<script>
+  (function() {
+    window.dataLayer = window.dataLayer || [];
+    if (window.ytListenerAttached) return;
+
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    var players = {};
+    var videoStatus = {};
+
+    window.onYouTubeIframeAPIReady = function() {
+      var iframes = document.querySelectorAll('iframe[src*="youtube.com/embed"]');
+      for (var i = 0; i < iframes.length; i++) {
+        var currentIframe = iframes[i];
+        if (currentIframe.src.indexOf('enablejsapi=1') === -1) {
+            currentIframe.src += (currentIframe.src.indexOf('?') === -1 ? '?' : '&') + 'enablejsapi=1';
+        }
+        if (!currentIframe.id) {
+            currentIframe.id = 'ytplayer-' + Math.random().toString(36).substring(7);
+        }
+        players[currentIframe.id] = new YT.Player(currentIframe.id, {
+          events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+        });
+      }
+    };
+    
+    function onPlayerReady(event) {
+        var videoId = event.target.getIframe().id;
+        videoStatus[videoId] = { hasPlayed: false };
+    }
+
+    function onPlayerStateChange(event) {
+      var iFrame = event.target.getIframe();
+      var videoId = iFrame.id;
+      var videoTitle = iFrame.getAttribute('title') || 'Video Title N/A';
+
+     var videoUrl = 'Video URL N/A';
+      var src = iFrame.getAttribute('src');
+      if (src) {
+        var urlParts = src.split('/embed/');
+        if (urlParts.length > 1) {
+          var videoIdFromSrc = urlParts[1].split('?')[0].split('&')[0];
+          videoUrl = "https://www.youtube.com/watch?v=" + videoIdFromSrc;
+        }
+      }
+
+      if (event.data == YT.PlayerState.PLAYING && !videoStatus[videoId].hasPlayed) {
+        videoStatus[videoId].hasPlayed = true;
+        window.dataLayer.push({
+          'event': 'video',
+          'gtm.videoProvider': 'youtube',
+          'gtm.videoStatus': 'start',
+          'gtm.videoTitle': videoTitle,
+          'gtm.videoUrl': videoUrl
+        });
+      }
+      
+      if (event.data == YT.PlayerState.PAUSED) {
+        window.dataLayer.push({
+          'event': 'video',
+          'gtm.videoProvider': 'youtube',
+          'gtm.videoStatus': 'pause',
+          'gtm.videoTitle': videoTitle,
+          'gtm.videoUrl': videoUrl
+        });
+      }
+
+      if (event.data == YT.PlayerState.ENDED) {
+        videoStatus[videoId].hasPlayed = false; 
+        window.dataLayer.push({
+          'event': 'video',
+          'gtm.videoProvider': 'youtube',
+          'gtm.videoStatus': 'complete',
+          'gtm.videoTitle': videoTitle,
+          'gtm.videoUrl': videoUrl
+        });
+      }
+    }
+    
+    window.ytListenerAttached = true;
+  })();
+</script>
